@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 180" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad-text" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A78BFA" />
+      <stop offset="50%" stop-color="#EC4899" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+    <linearGradient id="grad-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.3" />
+      <stop offset="50%" stop-color="#EC4899" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.3" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="15" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <rect width="800" height="180" rx="20" fill="#0d1117" />
+  <rect x="2" y="2" width="796" height="176" rx="18" fill="none" stroke="url(#grad-text)" stroke-width="1.5" stroke-opacity="0.4" />
+
+  <!-- Background Ambient Glow -->
+  <circle cx="100" cy="90" r="60" fill="url(#grad-glow)" filter="url(#glow)" />
+
+  <!-- Orb Icon -->
+  <g transform="translate(60, 50)">
+    <circle cx="40" cy="40" r="36" fill="#1e1b4b" stroke="url(#grad-text)" stroke-width="2.5" />
+    <text x="40" y="52" font-size="38" text-anchor="middle" dominant-baseline="central">🔮</text>
+  </g>
+
+  <!-- Title Text -->
+  <text x="170" y="88" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="52" font-weight="900" letter-spacing="-1.5" fill="url(#grad-text)">
+    FrameVerse
+  </text>
+
+  <!-- Subtitle Tagline -->
+  <text x="172" y="124" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#94A3B8" letter-spacing="0.5">
+    Next-Gen AI Video Stylization &amp; Real-Time WebRTC Mesh Universe
+  </text>
+
+  <!-- Live Badges Preview -->
+  <g transform="translate(630, 75)">
+    <rect width="130" height="30" rx="15" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <circle cx="18" cy="15" r="4.5" fill="#10B981" />
+    <text x="32" y="19.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#E2E8F0" letter-spacing="0.5">CLOUD NATIVE</text>
+  </g>
+</svg>
