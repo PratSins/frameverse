@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/PratSins/FrameVerse-client"><img src="https://img.shields.io/badge/Frontend-React_18_%2B_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend"></a>
   <a href="https://github.com/PratSins/FrameVerse-Backend"><img src="https://img.shields.io/badge/Backend-Go_1.23_%2B_Chi-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Backend"></a>
-  <a href="https://github.com/PratSins/FrameVerse-Auth"><img src="https://img.shields.io/badge/Auth_Service-Python_FastAPI-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Auth"></a>
+  <a href="https://github.com/PratSins/FrameVerse-Auth"><img src="https://img.shields.io/badge/Auth_Service-Go_1.23_%2B_Chi-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Auth"></a>
   <a href="https://cloud.google.com/kubernetes-engine"><img src="https://img.shields.io/badge/Kubernetes-GKE_Autopilot/Standard-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="GKE"></a>
   <a href="https://letsencrypt.org/"><img src="https://img.shields.io/badge/SSL/TLS-Let's_Encrypt_+_cert--manager-003A70?style=for-the-badge&logo=letsencrypt&logoColor=white" alt="Cert Manager"></a>
   <a href="https://firebase.google.com/"><img src="https://img.shields.io/badge/Hosting-Firebase_Hosting-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase"></a>
@@ -27,7 +27,7 @@ The FrameVerse codebase is structured across dedicated, single-responsibility re
 | :--- | :--- | :--- | :--- | :--- |
 | **Frontend** | [**`FrameVerse-client`**](https://github.com/PratSins/FrameVerse-client) | React 18, TypeScript, Vite, MediaPipe | **Firebase Hosting** (Global CDN) | SPA with gesture tracking, studio preview, and WebRTC video calling. |
 | **Core Backend** | [**`FrameVerse-Backend`**](https://github.com/PratSins/FrameVerse-Backend) | Go 1.23, Chi, Gorilla WebSockets, Google Cloud Storage SDK | **GKE Cluster** (`ClusterIP:8080`) | High-concurrency video processing orchestrator & WebRTC signaling hub. |
-| **Auth Microservice** | [**`FrameVerse-Auth`**](https://github.com/PratSins/FrameVerse-Auth) | Python 3.11, FastAPI, SQLAlchemy, Cloud SQL Postgres | **GKE Cluster** (`ClusterIP:8080`) | Stateless JWT issuer, RSA-256 key discovery (JWKS), and user lifecycle manager. |
+| **Auth Microservice** | [**`FrameVerse-Auth`**](https://github.com/PratSins/FrameVerse-Auth) | Go 1.23, Chi, pgx/v5, Cloud SQL Postgres, JWT RS256 | **GKE Cluster** (`ClusterIP:8080`) | Stateless JWT issuer, RSA-256 key discovery (JWKS), and user lifecycle manager. |
 | **Infrastructure & CI/CD** | *This Repository* (`framverse-infra-doc`) | Kubernetes Manifests, NGINX Ingress, `cert-manager`, MongoDB | **GKE Cluster** (`frameverse-cluster`) | Consolidated cluster gateway, automated Let's Encrypt TLS, database state, and GitHub Actions CD pipelines. |
 
 > *Note: Cloud infrastructure deployment manifests and automated pipelines are managed directly in this repository.*
@@ -64,7 +64,7 @@ The FrameVerse codebase is structured across dedicated, single-responsibility re
          ▼                                            ▼                                            ▼
  ┌───────────────┐                            ┌───────────────┐                            ┌───────────────┐
  │frameverse-auth│                            │frameverse-    │                            │frameverse-    │
- │ (Python/GKE)  │                            │backend (Go)   │                            │backend (Go)   │
+ │   (Go/GKE)    │                            │backend (Go)   │                            │backend (Go)   │
  └───────┬───────┘                            └───────┬───────┘                            └───────┬───────┘
          │                                            │                                            │
          ▼                                            ▼                                            ▼
