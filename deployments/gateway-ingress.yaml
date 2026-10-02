@@ -1,0 +1,205 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frameverse-ingress-health
+  namespace: default
+  labels:
+    app: frameverse-ingress-health
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frameverse-ingress-health
+  template:
+    metadata:
+      labels:
+        app: frameverse-ingress-health
+    spec:
+      containers:
+        - name: health
+          image: hashicorp/http-echo:latest
+          args:
+            - "-listen=:8080"
+            - '-text={"status":"ok","service":"frameverse-ingress"}'
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frameverse-ingress-health
+  namespace: default
+  labels:
+    app: frameverse-ingress-health
+spec:
+  type: ClusterIP
+  selector:
+    app: frameverse-ingress-health
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frameverse-gateway-ingress
+  namespace: default
+  annotations:
+    # cert-manager automated Let's Encrypt TLS issuance
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+
+    # Gateway timeouts & streaming limits
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+
+    # Real-Time WebSocket signaling
+    nginx.ingress.kubernetes.io/websocket-services: "frameverse-backend"
+
+    # Cross-Origin Resource Sharing (CORS)
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - YOUR_EXTERNAL_IP.sslip.io
+    secretName: frameverse-tls-cert
+  rules:
+  # 1. Host-based rule for public HTTPS traffic with valid Let's Encrypt certificate
+  - host: YOUR_EXTERNAL_IP.sslip.io
+    http:
+      paths:
+      # Ingress Health Check
+      - path: /healthz
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-ingress-health
+            port:
+              number: 8080
+
+      # Auth Service Routes & Auth Health
+      - path: /api/v1/auth/healthz
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-auth
+            port:
+              number: 8080
+      - path: /api/v1/auth
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-auth
+            port:
+              number: 8080
+      - path: /.well-known/jwks.json
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-auth
+            port:
+              number: 8080
+
+      # Backend Service Routes & Backend Health
+      - path: /api/v1/backend/healthz
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-backend
+            port:
+              number: 8080
+      - path: /api/v1/toonify
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-backend
+            port:
+              number: 8080
+      - path: /api/v1
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-backend
+            port:
+              number: 8080
+
+      # vChat Real-Time WebRTC WebSockets
+      - path: /ws/vchat
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-backend
+            port:
+              number: 8080
+
+  # 2. Catch-all fallback rule (Direct external IP access without Host header)
+  - http:
+      paths:
+      - path: /healthz
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-ingress-health
+            port:
+              number: 8080
+      - path: /api/v1/auth/healthz
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-auth
+            port:
+              number: 8080
+      - path: /api/v1/auth
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-auth
+            port:
+              number: 8080
+      - path: /.well-known/jwks.json
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-auth
+            port:
+              number: 8080
+      - path: /api/v1/backend/healthz
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-backend
+            port:
+              number: 8080
+      - path: /api/v1/toonify
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-backend
+            port:
+              number: 8080
+      - path: /api/v1
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-backend
+            port:
+              number: 8080
+      - path: /ws/vchat
+        pathType: Prefix
+        backend:
+          service:
+            name: frameverse-backend
+            port:
+              number: 8080

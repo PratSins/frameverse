@@ -1,0 +1,86 @@
+name: Deploy cert-manager & Let's Encrypt to GKE
+
+on:
+  push:
+    tags:
+      - 'cert-*'
+  release:
+    types: [published]
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'your-gcp-project-id' }}
+  GKE_CLUSTER: ${{ vars.GKE_CLUSTER || 'frameverse-cluster' }}
+  GKE_ZONE: ${{ vars.GKE_ZONE || 'asia-south1-a' }}
+  CERT_MANAGER_VERSION: v1.16.3
+
+jobs:
+  deploy-cert-manager:
+    name: Deploy cert-manager & ClusterIssuer
+    runs-on: ubuntu-latest
+    # If triggered by release, only run if tag starts with 'cert-' or if manually dispatched
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'cert-')
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: 'gke-gcloud-auth-plugin'
+
+      - name: Connect to GKE Cluster
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Install or Upgrade cert-manager
+        run: |
+          echo "=========================================================="
+          echo "🔒 Installing cert-manager ${CERT_MANAGER_VERSION}..."
+          echo "=========================================================="
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml
+
+          echo "Waiting for cert-manager deployments to roll out..."
+          kubectl rollout status deployment/cert-manager -n cert-manager --timeout=180s
+          kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=180s
+          kubectl rollout status deployment/cert-manager-cainjector -n cert-manager --timeout=180s
+
+          echo "✅ cert-manager pods are RUNNING:"
+          kubectl get pods -n cert-manager
+
+      - name: Wait for Webhook Service to be Ready
+        run: |
+          echo "Giving cert-manager webhook a few seconds to initialize..."
+          sleep 10
+
+      - name: Apply Let's Encrypt ClusterIssuer
+        run: |
+          echo "=========================================================="
+          echo "📜 Applying Let's Encrypt Production ClusterIssuer..."
+          echo "=========================================================="
+          kubectl apply -f deployments/cert-manager-issuer.yaml
+
+          echo "Verifying ClusterIssuer status..."
+          for i in {1..12}; do
+            STATUS=$(kubectl get clusterissuer letsencrypt-prod -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+            if [ "$STATUS" = "True" ]; then
+              echo "✅ ClusterIssuer letsencrypt-prod is READY!"
+              break
+            fi
+            echo "Waiting for ClusterIssuer to become ready... (attempt $i/12)"
+            sleep 5
+          done
+
+          kubectl describe clusterissuer letsencrypt-prod

@@ -1,0 +1,101 @@
+name: Deploy API Gateway Ingress to GKE
+
+on:
+  push:
+    tags:
+      - 'ingress-*'
+      - 'v*'
+  release:
+    types: [published]
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'your-gcp-project-id' }}
+  GKE_CLUSTER: ${{ vars.GKE_CLUSTER || 'frameverse-cluster' }}
+  GKE_ZONE: ${{ vars.GKE_ZONE || 'asia-south1-a' }}
+
+jobs:
+  deploy:
+    name: Deploy Ingress Gateway to GKE
+    runs-on: ubuntu-latest
+    # If triggered by release, do not run if tag is a cert- release
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'cert-') && !startsWith(github.event.release.tag_name, 'mongo-'))
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: 'gke-gcloud-auth-plugin'
+
+      - name: Connect to GKE Cluster
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Install or Verify NGINX Ingress Controller
+        run: |
+          echo "Checking if ingress-nginx controller is installed..."
+          if ! kubectl get ns ingress-nginx > /dev/null 2>&1; then
+            echo "Installing NGINX Ingress Controller..."
+            kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
+          else
+            echo "NGINX Ingress Controller namespace already exists."
+          fi
+
+          echo "Waiting for ingress-nginx controller rollout..."
+          kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=180s
+
+      - name: Apply API Gateway Ingress Manifests
+        run: |
+          kubectl apply -f deployments/gateway-ingress.yaml
+          kubectl get ingress frameverse-gateway-ingress
+
+      - name: Discover Gateway External IP & Verify TLS Routes
+        run: |
+          echo "Waiting for Ingress Controller External IP..."
+          for i in {1..30}; do
+            GATEWAY_IP=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [ -n "$GATEWAY_IP" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          if [ -n "$GATEWAY_IP" ]; then
+            SSLIP_HOST="${GATEWAY_IP}.sslip.io"
+            echo "=========================================================="
+            echo "🎉 FrameVerse API Gateway Ingress is LIVE on GKE!"
+            echo "=========================================================="
+            echo "Direct IP:               http://${GATEWAY_IP}"
+            echo "HTTPS Domain (sslip.io): https://${SSLIP_HOST}"
+            echo ""
+            echo "--- Separate Health Checks ---"
+            echo "1. Ingress Healthz:      https://${SSLIP_HOST}/healthz"
+            echo "2. Auth Healthz:         https://${SSLIP_HOST}/api/v1/auth/healthz"
+            echo "3. Backend Healthz:      https://${SSLIP_HOST}/api/v1/backend/healthz"
+            echo ""
+            echo "--- Service Routes ---"
+            echo "Auth API Base:           https://${SSLIP_HOST}/api/v1/auth"
+            echo "JWKS Public Keys:        https://${SSLIP_HOST}/.well-known/jwks.json"
+            echo "Backend API Base:        https://${SSLIP_HOST}/api/v1"
+            echo "vChat WebSockets:        wss://${SSLIP_HOST}/ws/vchat"
+            echo "=========================================================="
+
+            echo "Checking certificate provisioning status (may take 30-60s on first run)..."
+            kubectl get certificate -n default || true
+          else
+            echo "LoadBalancer IP is provisioning. Check with: kubectl get svc -n ingress-nginx ingress-nginx-controller"
+          fi
