@@ -13,7 +13,7 @@
 
 ---
 
-## 🌟 Executive Summary
+## 🌟 Summary
 
 **FrameVerse** is a production-grade, cloud-native universe uniting **Generative AI Video Stylization** with **Real-Time WebRTC Communications**. Built with an asynchronous microservices architecture orchestrated on **Google Kubernetes Engine (GKE)** and **Firebase Hosting**, the platform delivers low-latency video transformations, driver-level hardware webcam controls, proactive 7-day authentication sessions, and zero-cost automated SSL/TLS termination.
 
