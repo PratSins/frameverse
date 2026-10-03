@@ -28,7 +28,7 @@ The FrameVerse codebase is structured across dedicated, single-responsibility re
 | **Frontend** | [**`FrameVerse-client`**](https://github.com/PratSins/FrameVerse-client) | React 18, TypeScript, Vite, MediaPipe | **Firebase Hosting** (Global CDN) | SPA with gesture tracking, studio preview, and WebRTC video calling. |
 | **Core Backend** | [**`FrameVerse-Backend`**](https://github.com/PratSins/FrameVerse-Backend) | Go 1.23, Chi, Gorilla WebSockets, Google Cloud Storage SDK | **GKE Cluster** (`ClusterIP:8080`) | High-concurrency video processing orchestrator & WebRTC signaling hub. |
 | **Auth Microservice** | [**`FrameVerse-Auth`**](https://github.com/PratSins/FrameVerse-Auth) | Go 1.23, Chi, pgx/v5, Cloud SQL Postgres, JWT RS256 | **GKE Cluster** (`ClusterIP:8080`) | Stateless JWT issuer, RSA-256 key discovery (JWKS), and user lifecycle manager. |
-| **Infrastructure & CI/CD** | *This Repository* (`framverse-infra-doc`) | Kubernetes Manifests, NGINX Ingress, `cert-manager`, MongoDB | **GKE Cluster** (`frameverse-cluster`) | Consolidated cluster gateway, automated Let's Encrypt TLS, database state, and GitHub Actions CD pipelines. |
+| **Infrastructure & CI/CD** | *This Repository* (`frameverse`) | Kubernetes Manifests, NGINX Ingress, `cert-manager`, MongoDB | **GKE Cluster** (`frameverse-cluster`) | Consolidated cluster gateway, automated Let's Encrypt TLS, database state, and GitHub Actions CD pipelines. |
 
 > *Note: Cloud infrastructure deployment manifests and automated pipelines are managed directly in this repository.*
 
@@ -137,7 +137,7 @@ The entire stack is deployed and actively managed in GKE cluster `frameverse-clu
 This repository hosts **three decoupled GitHub Actions workflows** allowing independent deployments without triggering unrelated services:
 
 ```
-framverse-infra-doc/
+frameverse/
 ├── .github/
 │   └── workflows/
 │       ├── deploy-cert-manager.yml   # Workflow 1: cert-manager Controller & ClusterIssuer
