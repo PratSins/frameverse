@@ -232,3 +232,6 @@ https://github.com/user-attachments/assets/dd12b311-557a-4b97-842d-3accc3ad194a
 ## 📄 License & Attribution
 
 This project is part of the **FrameVerse** cloud-native ecosystem. Designed and developed by **[Pratyush Singh](https://github.com/PratSins)**.
+
+
+LinkedIn - https://www.linkedin.com/feed/update/urn:li:activity:7512135912521334784/
