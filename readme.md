@@ -205,10 +205,16 @@ openssl s_client -connect 34.47.229.61:443 -servername 34.47.229.61.sslip.io </d
 
 ## 🎬 Video & Demo Showcase
 
-<!-- Video demonstrations, side-by-side Toonify comparisons, and vChat room recordings will be showcased here -->
+Watch the FrameVerse full-stack platform demonstration showcasing AI video transformation, real-time WebRTC multi-peer video meetings, and cloud-native Kubernetes workloads in action:
 
 <p align="center">
-  <em>Toonify AI style transformation and WebRTC multi-peer demo videos coming soon.</em>
+  <video src="docs/Untitled%20design.mp4" controls width="100%" style="max-width: 900px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    Your browser does not support the video tag. You can view the video directly at <a href="docs/Untitled%20design.mp4">docs/Untitled design.mp4</a>.
+  </video>
+</p>
+
+<p align="center">
+  ▶️ <strong><a href="docs/Untitled%20design.mp4">Click to view / download full demo video (<code>Untitled design.mp4</code>)</a></strong>
 </p>
 
 ---
