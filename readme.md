@@ -207,6 +207,16 @@ openssl s_client -connect 34.47.229.61:443 -servername 34.47.229.61.sslip.io </d
 
 Watch the FrameVerse full-stack platform demonstration showcasing AI video transformation, real-time WebRTC multi-peer video meetings, and cloud-native Kubernetes workloads in action:
 
+
+
+https://github.com/user-attachments/assets/dd12b311-557a-4b97-842d-3accc3ad194a
+
+
+
+
+
+
+
 <p align="center">
   <video src="docs/Untitled%20design.mp4" controls width="100%" style="max-width: 900px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
     Your browser does not support the video tag. You can view the video directly at <a href="docs/Untitled%20design.mp4">docs/Untitled design.mp4</a>.
