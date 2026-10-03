@@ -94,6 +94,37 @@ The FrameVerse codebase is structured across dedicated, single-responsibility re
   Public RSA keys are cached in-memory with automatic expiration, giving near-instant authorization for every API and WebSocket handshake.
 - **Proactive Client Keep-Alive:** The frontend runs a background heartbeat that evaluates token expiry and proactively requests a fresh access token 2 minutes prior to expiration, enabling a frictionless 7-day session.
 
+#### Asymmetric Authentication & JWKS Discovery Flow:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Client (React 18 SPA)
+    participant Ingress as NGINX Ingress (TLS 443)
+    participant Auth as FrameVerse-Auth (Go)
+    participant DB as Cloud SQL (Postgres)
+    participant Backend as FrameVerse-Backend (Go)
+
+    User->>Ingress: POST /api/v1/auth/login { email, password }
+    Ingress->>Auth: Forward to Auth Service
+    Auth->>DB: Query User & Verify Argon2id Password Hash
+    DB-->>Auth: User Record OK
+    Auth->>Auth: Sign RS256 JWT (Access Token 15m) + Generate Refresh Token (7d)
+    Auth->>DB: Store SHA-256 Hashed Refresh Token
+    Auth-->>User: 200 OK { tokens: { access_token, refresh_token }, user }
+
+    Note over User,Backend: Stateless Asymmetric Verification (Zero DB round-trips!)
+    User->>Ingress: POST /api/v1/toonify/upload-url (Bearer JWT)
+    Ingress->>Backend: Forward Request with Authorization Header
+    alt Public Key not in Memory Cache
+        Backend->>Auth: GET http://frameverse-auth.default.svc.cluster.local:8080/.well-known/jwks.json
+        Auth-->>Backend: Public RSA Key (JWKS)
+        Backend->>Backend: Cache Public Key in Memory
+    end
+    Backend->>Backend: Verify RS256 Signature & Claims Locally
+    Backend-->>User: 200 OK { job_id, upload_url }
+```
+
 ### 3. AI Toonify Studio & Multimodal Pipeline (`FrameVerse-Backend`)
 - **Computer Vision Trigger:** Uses client-side **MediaPipe Hand Landmarker** to track hand gestures. Framing your face with both index fingers and thumbs creates a 2-hand "box" that automatically starts recording a video clip with a 3-second countdown.
 - **Direct Cloud Upload:** The Go backend generates signed Google Cloud Storage (GCS) upload URLs. Video clips stream directly from the browser to GCS bucket `frameverse-videos`, bypassing backend upload bottlenecks.
@@ -107,6 +138,41 @@ The FrameVerse codebase is structured across dedicated, single-responsibility re
   - Multi-provider STUN candidate pooling (Google, Cloudflare, OpenRelay) guarantees rapid NAT traversal across strict firewalls.
 - **Automated ICE Restart:** If network drops or router NAT tables expire, `pc.oniceconnectionstatechange` detects `disconnected` or `failed` states and automatically triggers a seamless **ICE Restart** (`pc.restartIce()`) without disconnecting users.
 - **Hardware-Level Camera Toggle:** Clicking "Stop Cam" stops and disconnects the browser's hardware video track at the driver level (turning off the physical green webcam LED). Toggling it on re-requests `getUserMedia` and replaces senders on all active peer connections.
+
+#### Full-Mesh WebRTC Signaling & NAT Traversal:
+
+```mermaid
+flowchart LR
+    subgraph Browser1["Peer A (Host)"]
+        CamA["Local Webcam"]
+        PCA["RTCPeerConnection"]
+        UI_A["Meet UI (Dark #202124)"]
+    end
+
+    subgraph Signaling["Signaling Broker (GKE)"]
+        WSHub["Gorilla WebSocket Hub\nws/vchat/rooms/:roomId"]
+    end
+
+    subgraph STUN["NAT Traversal"]
+        StunPool["Multi-Provider STUN Pool\nGoogle | Cloudflare | OpenRelay"]
+    end
+
+    subgraph Browser2["Peer B (Participant)"]
+        CamB["Local Webcam"]
+        PCB["RTCPeerConnection"]
+        UI_B["Meet UI (Dark #202124)"]
+    end
+
+    Browser1 -->|"Step 1: WebSocket Connect (JWT Auth)"| WSHub
+    Browser2 -->|"Step 2: WebSocket Connect (Room Knock)"| WSHub
+    WSHub -->|"Step 3: SDP Offer / Answer Exchange"| WSHub
+
+    PCA -.->|"Trickle ICE Candidate Discovery"| StunPool
+    PCB -.->|"Trickle ICE Candidate Discovery"| StunPool
+
+    PCA ===|"P2P Encrypted Audio/Video (DTLS/SRTP)"| PCB
+    PCB ===|"P2P Encrypted Audio/Video (DTLS/SRTP)"| PCA
+```
 
 ### 5. Persistent MongoDB Storage (`mongo.yaml`)
 - Configured as a stateful single-pod deployment on GKE backed by a **10 GiB PersistentVolumeClaim** (`mongo-pvc`) using GCP's `standard-rwo` persistent disk storage class.
@@ -159,6 +225,30 @@ frameverse/
 | **API Gateway Ingress** | [`.github/workflows/deploy-ingress.yml`](.github/workflows/deploy-ingress.yml) | **`v*`** or **`ingress-*`** (e.g. `v1.0.0`) | Applies NGINX Ingress routes, requests TLS cert for `34.47.229.61.sslip.io`, and binds HTTPS port 443. |
 | **MongoDB Database** | [`.github/workflows/deploy-mongo.yml`](.github/workflows/deploy-mongo.yml) | **`mongo-*`** (e.g. `mongo-v1.0.0`) | Provisions persistent storage (`mongo-pvc`), deploys MongoDB 8, and binds internal ClusterIP. |
 
+#### Automated CI/CD Tag Pipeline Execution:
+
+```mermaid
+flowchart TD
+    GitPush["Git Tag Push to main"] --> Splitter{"Tag Pattern"}
+
+    Splitter -->|"tag: cert-*"| WF1["deploy-cert-manager.yml"]
+    Splitter -->|"tag: v* or ingress-*"| WF2["deploy-ingress.yml"]
+    Splitter -->|"tag: mongo-*"| WF3["deploy-mongo.yml"]
+
+    subgraph Actions["GitHub Actions Automated Execution"]
+        AuthGCP["Step 1: Authenticate to Google Cloud (Workload Identity / SA)"]
+        GetKube["Step 2: Retrieve GKE Cluster Credentials (frameverse-cluster)"]
+        ApplyK8s["Step 3: Apply Declarative K8s Manifests (helm / kubectl)"]
+        Rollout["Step 4: Verify Zero-Downtime Rollout (rollout status)"]
+    end
+
+    WF1 --> AuthGCP
+    WF2 --> AuthGCP
+    WF3 --> AuthGCP
+
+    AuthGCP --> GetKube --> ApplyK8s --> Rollout --> Complete["✅ Production Live & Healthy"]
+```
+
 *Note: All three workflows also support manual triggering via `workflow_dispatch` in the GitHub Actions tab.*
 
 ---
@@ -207,24 +297,10 @@ openssl s_client -connect 34.47.229.61:443 -servername 34.47.229.61.sslip.io </d
 
 Watch the FrameVerse full-stack platform demonstration showcasing AI video transformation, real-time WebRTC multi-peer video meetings, and cloud-native Kubernetes workloads in action:
 
-
-
 https://github.com/user-attachments/assets/dd12b311-557a-4b97-842d-3accc3ad194a
 
-
-
-
-
-
-
 <p align="center">
-  <video src="docs/Untitled%20design.mp4" controls width="100%" style="max-width: 900px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-    Your browser does not support the video tag. You can view the video directly at <a href="docs/Untitled%20design.mp4">docs/Untitled design.mp4</a>.
-  </video>
-</p>
-
-<p align="center">
-  ▶️ <strong><a href="docs/Untitled%20design.mp4">Click to view / download full demo video (<code>Untitled design.mp4</code>)</a></strong>
+  ▶️ <strong><a href="https://github.com/user-attachments/assets/dd12b311-557a-4b97-842d-3accc3ad194a">Open full demonstration video in high resolution</a></strong>
 </p>
 
 ---
