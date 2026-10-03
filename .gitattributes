@@ -1,0 +1,5 @@
+# GitHub Linguist overrides to detect Go code
+*.go linguist-detectable=true
+*.go linguist-documentation=false
+main.go linguist-detectable=true
+main.go linguist-documentation=false
